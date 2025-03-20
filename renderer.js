@@ -125,27 +125,28 @@ function detectGesture(landmarks) {
   // Get thumb-index distance for pinch detection
   const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
   
+  // Check for finger gun (thumb up, index extended, other fingers curled)
+  const thumbUp = thumbTip.y < wrist.y - 0.05;
+  const indexExtended = calculateDistance(indexTip, wrist) > 0.15;
+  const otherFingersCurled = 
+    fingersExtended[2] < 0.12 && 
+    fingersExtended[3] < 0.12 && 
+    fingersExtended[4] < 0.12;
+  
+  if (thumbUp && indexExtended && otherFingersCurled) {
+    return "Finger Gun";
+  }
+  
   // Check for pointing up by checking y-positions of fingertips relative to their bases
   // If index finger tip is much higher than its base, while other fingers are lower or close to their bases
   const indexPointingUp = indexTip.y < indexBase.y - 0.08;
   const middleDown = middleTip.y >= middleBase.y - 0.03;
   const ringDown = ringTip.y >= ringBase.y - 0.03;
   const pinkyDown = pinkyTip.y >= pinkyBase.y - 0.03;
+  const thumbDown = thumbTip.y >= wrist.y - 0.03;
   
-  // Also check distance to ensure index is extended
-  const indexExtended = calculateDistance(indexTip, wrist) > 0.15;
-  
-  if (indexPointingUp && middleDown && ringDown && pinkyDown && indexExtended) {
+  if (indexPointingUp && middleDown && ringDown && pinkyDown && thumbDown) {
     return "Pointing Up";
-  }
-  
-  // Check for OK sign (thumb and index form a circle, other fingers extended)
-  const okThreshold = 0.05;
-  if (thumbIndexDistance < okThreshold && 
-      fingersExtended[2] > 0.15 && 
-      fingersExtended[3] > 0.15 && 
-      fingersExtended[4] > 0.15) {
-    return "OK Sign";
   }
   
   // Check for general pinch gesture (thumb and index finger close together)
@@ -210,21 +211,21 @@ function triggerKeyboardAction(gesture) {
       ipcRenderer.send('trigger-keyboard', 'escape');
       action = 'Escape pressed';
       break;
-    case "Pointing Up":
+    case "Finger Gun":
       ipcRenderer.send('trigger-keyboard', 'tab');
       action = 'Tab pressed';
       break;
-    case "OK Sign":
+    case "Thumbs Up":
       ipcRenderer.send('trigger-keyboard', 'enter');
       action = 'Enter pressed';
       break;
-    case "Thumbs Up":
+    case "Pointing Up":
       ipcRenderer.send('trigger-keyboard', 'up');
-      action = 'Arrow Up pressed';
+      action = 'Page Up pressed';
       break;
     case "Thumbs Down":
       ipcRenderer.send('trigger-keyboard', 'down');
-      action = 'Arrow Down pressed';
+      action = 'Page Down pressed';
       break;
     case "Pinch":
       // For single hand pinch (not used for zooming)

@@ -25,17 +25,16 @@ function simulateKeypress(keyCode) {
           script = 'tell application "System Events" to key code 36'; // Return
           break;
         case 'up':
-          script = 'tell application "System Events" to key code 126'; // Up arrow
+          script = 'tell application "System Events" to key code 116'; // Page Up
           break;
         case 'down':
-          script = 'tell application "System Events" to key code 125'; // Down arrow
+          script = 'tell application "System Events" to key code 121'; // Page Down
           break;
         case 'left':
           script = 'tell application "System Events" to key code 123'; // Left arrow
           break;
         case 'tab':
-          // Try the direct key code method first
-          script = 'tell application "System Events" to keystroke tab'; // Tab - use keystroke instead of key code
+          script = 'tell application "System Events" to keystroke tab'; // Tab
           break;
         case 'zoom-in':
           script = 'tell application "System Events" to keystroke "+" using {command down}'; // Cmd+Plus
