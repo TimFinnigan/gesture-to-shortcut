@@ -122,8 +122,60 @@ function detectGesture(landmarks) {
     Math.sqrt(Math.pow(pinkyTip.x - wrist.x, 2) + Math.pow(pinkyTip.y - wrist.y, 2))
   ];
   
+  // Calculate distances from fingertips to their bases
+  const fingerExtendedFromBase = [
+    calculateDistance(thumbTip, landmarks[2]), // Thumb MCP
+    calculateDistance(indexTip, indexBase),
+    calculateDistance(middleTip, middleBase),
+    calculateDistance(ringTip, ringBase),
+    calculateDistance(pinkyTip, pinkyBase)
+  ];
+  
   // Get thumb-index distance for pinch detection
   const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
+  
+  // Check if fingertips are higher than their bases
+  const fingerYOffset = [
+    0, // Thumb (not used)
+    indexBase.y - indexTip.y,  // Index
+    middleBase.y - middleTip.y, // Middle
+    ringBase.y - ringTip.y,    // Ring
+    pinkyBase.y - pinkyTip.y   // Pinky
+  ];
+  
+  // Debug output for finger extension ratios
+  const debugFingerInfo = `
+    Index Y-Offset: ${fingerYOffset[1].toFixed(3)}
+    Middle Y-Offset: ${fingerYOffset[2].toFixed(3)}
+    Ring Y-Offset: ${fingerYOffset[3].toFixed(3)}
+    Pinky Y-Offset: ${fingerYOffset[4].toFixed(3)}
+  `;
+  console.log(debugFingerInfo);
+  
+  // Check for Victory Sign (index and middle fingers extended in a V shape)
+  // Using lower thresholds and checking both vertical position and extension
+  if (fingerYOffset[1] > 0.02 && 
+      fingerYOffset[2] > 0.02 && 
+      fingerYOffset[3] < 0.015 && 
+      fingerYOffset[4] < 0.015 && 
+      fingerExtendedFromBase[1] > 0.07 && 
+      fingerExtendedFromBase[2] > 0.07 && 
+      fingerExtendedFromBase[3] < 0.07 && 
+      fingerExtendedFromBase[4] < 0.07) {
+    return "Victory Sign";
+  }
+  
+  // Check for Three Fingers Up (index, middle, and ring fingers extended)
+  if (fingerYOffset[1] > 0.015 && 
+      fingerYOffset[2] > 0.015 && 
+      fingerYOffset[3] > 0.015 && 
+      fingerYOffset[4] < 0.015 && 
+      fingerExtendedFromBase[1] > 0.06 && 
+      fingerExtendedFromBase[2] > 0.06 && 
+      fingerExtendedFromBase[3] > 0.06 && 
+      fingerExtendedFromBase[4] < 0.06) {
+    return "Three Fingers";
+  }
   
   // Check for finger gun (thumb up, index extended, other fingers curled)
   const thumbUp = thumbTip.y < wrist.y - 0.05;
@@ -164,32 +216,31 @@ function detectGesture(landmarks) {
   }
   
   // Check for palm (all fingers extended)
-  const threshold = 0.15;
-  if (fingersExtended.every(dist => dist > threshold)) {
+  if (fingersExtended.every(dist => dist > 0.1)) {
     return "Palm";
   }
   
   // Check for closed fist (all fingers curled)
-  if (fingersExtended.every(dist => dist < threshold)) {
+  if (fingersExtended.every(dist => dist < 0.1)) {
     return "Closed Fist";
   }
   
   // Check for thumbs up (only thumb extended and pointing up)
-  if (fingersExtended[0] > threshold && 
-      fingersExtended[1] < threshold && 
-      fingersExtended[2] < threshold && 
-      fingersExtended[3] < threshold && 
-      fingersExtended[4] < threshold && 
+  if (fingersExtended[0] > 0.1 && 
+      fingersExtended[1] < 0.1 && 
+      fingersExtended[2] < 0.1 && 
+      fingersExtended[3] < 0.1 && 
+      fingersExtended[4] < 0.1 && 
       thumbTip.y < wrist.y) {
     return "Thumbs Up";
   }
   
   // Check for thumbs down (only thumb extended and pointing down)
-  if (fingersExtended[0] > threshold && 
-      fingersExtended[1] < threshold && 
-      fingersExtended[2] < threshold && 
-      fingersExtended[3] < threshold && 
-      fingersExtended[4] < threshold && 
+  if (fingersExtended[0] > 0.1 && 
+      fingersExtended[1] < 0.1 && 
+      fingersExtended[2] < 0.1 && 
+      fingersExtended[3] < 0.1 && 
+      fingersExtended[4] < 0.1 && 
       thumbTip.y > wrist.y) {
     return "Thumbs Down";
   }
@@ -219,11 +270,11 @@ function triggerKeyboardAction(gesture) {
       ipcRenderer.send('trigger-keyboard', 'enter');
       action = 'Enter pressed';
       break;
-    case "Pointing Up":
+    case "Victory Sign":
       ipcRenderer.send('trigger-keyboard', 'up');
       action = 'Page Up pressed';
       break;
-    case "Thumbs Down":
+    case "Three Fingers":
       ipcRenderer.send('trigger-keyboard', 'down');
       action = 'Page Down pressed';
       break;
@@ -259,6 +310,82 @@ hands.onResults((results) => {
       
       // Detect gesture
       const gesture = detectGesture(landmarks);
+      
+      // Add visual debugging for specific finger positions
+      const wrist = landmarks[0];
+      const thumbTip = landmarks[4];
+      const indexTip = landmarks[8];
+      const middleTip = landmarks[12];
+      const ringTip = landmarks[16];
+      const pinkyTip = landmarks[20];
+      const indexBase = landmarks[5];
+      const middleBase = landmarks[9];
+      const ringBase = landmarks[13];
+      const pinkyBase = landmarks[17];
+      
+      // Calculate the y-offset of each finger (how much the tip is above the base)
+      const fingerYOffset = [
+        0, // Thumb (not used)
+        indexBase.y - indexTip.y,  // Index
+        middleBase.y - middleTip.y, // Middle
+        ringBase.y - ringTip.y,    // Ring
+        pinkyBase.y - pinkyTip.y   // Pinky
+      ];
+      
+      // Draw lines from base to tip with color indicating up/down position
+      // Green: finger is up enough for Victory Sign
+      // Yellow: finger is up enough for Three Fingers
+      // Red: finger is not up enough for either gesture
+      
+      // Draw indicator lines
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(indexBase.x * canvasElement.width, indexBase.y * canvasElement.height);
+      canvasCtx.lineTo(indexTip.x * canvasElement.width, indexTip.y * canvasElement.height);
+      canvasCtx.strokeStyle = fingerYOffset[1] > 0.02 ? "#00FF00" : (fingerYOffset[1] > 0.015 ? "#FFFF00" : "#FF0000");
+      canvasCtx.lineWidth = 3;
+      canvasCtx.stroke();
+      
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(middleBase.x * canvasElement.width, middleBase.y * canvasElement.height);
+      canvasCtx.lineTo(middleTip.x * canvasElement.width, middleTip.y * canvasElement.height);
+      canvasCtx.strokeStyle = fingerYOffset[2] > 0.02 ? "#00FF00" : (fingerYOffset[2] > 0.015 ? "#FFFF00" : "#FF0000");
+      canvasCtx.lineWidth = 3;
+      canvasCtx.stroke();
+      
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(ringBase.x * canvasElement.width, ringBase.y * canvasElement.height);
+      canvasCtx.lineTo(ringTip.x * canvasElement.width, ringTip.y * canvasElement.height);
+      canvasCtx.strokeStyle = fingerYOffset[3] > 0.015 ? "#00FFFF" : (fingerYOffset[3] < 0.015 ? "#00FF00" : "#FF00FF");
+      canvasCtx.lineWidth = 3;
+      canvasCtx.stroke();
+      
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(pinkyBase.x * canvasElement.width, pinkyBase.y * canvasElement.height);
+      canvasCtx.lineTo(pinkyTip.x * canvasElement.width, pinkyTip.y * canvasElement.height);
+      canvasCtx.strokeStyle = fingerYOffset[4] < 0.015 ? "#00FF00" : "#FF0000";
+      canvasCtx.lineWidth = 3;
+      canvasCtx.stroke();
+      
+      // Display debug info on canvas
+      const debugYOffset = [
+        `Index: ${fingerYOffset[1].toFixed(3)} ${fingerYOffset[1] > 0.02 ? "✓V" : (fingerYOffset[1] > 0.015 ? "✓3" : "✗")}`,
+        `Middle: ${fingerYOffset[2].toFixed(3)} ${fingerYOffset[2] > 0.02 ? "✓V" : (fingerYOffset[2] > 0.015 ? "✓3" : "✗")}`,
+        `Ring: ${fingerYOffset[3].toFixed(3)} ${fingerYOffset[3] > 0.015 ? "✓3" : (fingerYOffset[3] < 0.015 ? "✓V" : "✗")}`,
+        `Pinky: ${fingerYOffset[4].toFixed(3)} ${fingerYOffset[4] < 0.015 ? "✓" : "✗"}`
+      ];
+      
+      canvasCtx.font = '16px Arial';
+      canvasCtx.fillStyle = 'white';
+      canvasCtx.strokeStyle = 'black';
+      canvasCtx.lineWidth = 0.5;
+      for (let j = 0; j < debugYOffset.length; j++) {
+        canvasCtx.fillText(debugYOffset[j], 10, 20 + j * 20);
+        canvasCtx.strokeText(debugYOffset[j], 10, 20 + j * 20);
+      }
+      
+      // Add gesture debug text
+      canvasCtx.fillText(`Gesture: ${gesture}`, 10, 100);
+      canvasCtx.strokeText(`Gesture: ${gesture}`, 10, 100);
       
       // If pinch or zoom pinch detected, store points for possible zoom gesture
       if (gesture === "Pinch" || gesture === "Zoom Pinch") {
