@@ -77,7 +77,7 @@ function initCamera() {
 
 // Define gesture cooldown to prevent rapid triggering
 let lastGestureTime = 0;
-const GESTURE_COOLDOWN = 1000; // 1 second cooldown between gestures
+const GESTURE_COOLDOWN = 1500; // 1.5 second cooldown between gestures
 
 // Variable to track if hand is visible
 let handVisible = false;
@@ -107,6 +107,12 @@ function detectGesture(landmarks) {
   const ringTip = landmarks[16];
   const pinkyTip = landmarks[20];
   
+  // Finger bases (knuckles)
+  const indexBase = landmarks[5];
+  const middleBase = landmarks[9];
+  const ringBase = landmarks[13];
+  const pinkyBase = landmarks[17];
+  
   // Calculate distances from wrist to fingertips
   const fingersExtended = [
     Math.sqrt(Math.pow(thumbTip.x - wrist.x, 2) + Math.pow(thumbTip.y - wrist.y, 2)),
@@ -116,13 +122,36 @@ function detectGesture(landmarks) {
     Math.sqrt(Math.pow(pinkyTip.x - wrist.x, 2) + Math.pow(pinkyTip.y - wrist.y, 2))
   ];
   
+  // Check for pointing up by checking y-positions of fingertips relative to their bases
+  // If index finger tip is much higher than its base, while other fingers are lower or close to their bases
+  const indexPointingUp = indexTip.y < indexBase.y - 0.08;
+  const middleDown = middleTip.y >= middleBase.y - 0.03;
+  const ringDown = ringTip.y >= ringBase.y - 0.03;
+  const pinkyDown = pinkyTip.y >= pinkyBase.y - 0.03;
+  
+  // Also check distance to ensure index is extended
+  const indexExtended = calculateDistance(indexTip, wrist) > 0.15;
+  
+  if (indexPointingUp && middleDown && ringDown && pinkyDown && indexExtended) {
+    return "Pointing Up";
+  }
+  
+  // Check for OK sign (thumb and index form a circle, other fingers extended)
+  const okThreshold = 0.05;
+  const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
+  if (thumbIndexDistance < okThreshold && 
+      fingersExtended[2] > 0.15 && 
+      fingersExtended[3] > 0.15 && 
+      fingersExtended[4] > 0.15) {
+    return "OK Sign";
+  }
+  
   // Check for pinch gesture (thumb and index finger close together)
   const pinchThreshold = 0.05;
-  const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
   if (thumbIndexDistance < pinchThreshold && 
-      fingersExtended[2] > 0.1 && 
-      fingersExtended[3] > 0.1 && 
-      fingersExtended[4] > 0.1) {
+      fingersExtended[2] < 0.1 && 
+      fingersExtended[3] < 0.1 && 
+      fingersExtended[4] < 0.1) {
     return "Pinch";
   }
   
@@ -135,15 +164,6 @@ function detectGesture(landmarks) {
   // Check for closed fist (all fingers curled)
   if (fingersExtended.every(dist => dist < threshold)) {
     return "Closed Fist";
-  }
-  
-  // Check for pointing up (only index finger extended)
-  if (fingersExtended[1] > threshold && 
-      fingersExtended[0] < threshold && 
-      fingersExtended[2] < threshold && 
-      fingersExtended[3] < threshold && 
-      fingersExtended[4] < threshold) {
-    return "Pointing Up";
   }
   
   // Check for thumbs up (only thumb extended and pointing up)
@@ -184,6 +204,10 @@ function triggerKeyboardAction(gesture) {
       action = 'Escape pressed';
       break;
     case "Pointing Up":
+      ipcRenderer.send('trigger-keyboard', 'tab');
+      action = 'Tab pressed';
+      break;
+    case "OK Sign":
       ipcRenderer.send('trigger-keyboard', 'enter');
       action = 'Enter pressed';
       break;
@@ -197,8 +221,8 @@ function triggerKeyboardAction(gesture) {
       break;
     case "Pinch":
       // For single hand pinch (not used for zooming)
-      ipcRenderer.send('trigger-keyboard', 'tab');
-      action = 'Tab pressed';
+      ipcRenderer.send('trigger-keyboard', 'left');
+      action = 'Arrow Left pressed';
       break;
   }
   
@@ -239,6 +263,20 @@ hands.onResults((results) => {
       // Only show the first hand's gesture in UI
       if (i === 0) {
         detectedGestureElement.textContent = gesture;
+        
+        // Calculate cooldown remaining
+        const currentTime = Date.now();
+        const cooldownRemaining = GESTURE_COOLDOWN - (currentTime - lastGestureTime);
+        
+        // Show visual indication of cooldown
+        if (cooldownRemaining > 0 && gesture !== "Unknown") {
+          const cooldownPercentage = (cooldownRemaining / GESTURE_COOLDOWN) * 100;
+          detectedGestureElement.style.opacity = 0.5 + (0.5 * (1 - cooldownPercentage / 100));
+          detectedGestureElement.style.color = "#FF9900"; // Orange during cooldown
+        } else {
+          detectedGestureElement.style.opacity = 1;
+          detectedGestureElement.style.color = "#00AA00"; // Green when ready
+        }
       }
       
       // For single hand gestures

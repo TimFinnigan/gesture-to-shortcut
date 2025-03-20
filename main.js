@@ -30,8 +30,12 @@ function simulateKeypress(keyCode) {
         case 'down':
           script = 'tell application "System Events" to key code 125'; // Down arrow
           break;
+        case 'left':
+          script = 'tell application "System Events" to key code 123'; // Left arrow
+          break;
         case 'tab':
-          script = 'tell application "System Events" to key code 48'; // Tab
+          // Try the direct key code method first
+          script = 'tell application "System Events" to keystroke tab'; // Tab - use keystroke instead of key code
           break;
         case 'zoom-in':
           script = 'tell application "System Events" to keystroke "+" using {command down}'; // Cmd+Plus
@@ -144,7 +148,19 @@ function createWindow() {
 ipcMain.on('trigger-keyboard', (event, key) => {
   console.log('Triggering key:', key);
   try {
-    simulateKeypress(key);
+    // For tab key, try multiple methods (it can be problematic)
+    if (key === 'tab') {
+      try {
+        // First try with key code
+        const { execSync } = require('child_process');
+        execSync(`osascript -e 'tell application "System Events" to key code 48'`);
+      } catch (error) {
+        // If that fails, try with keystroke
+        simulateKeypress(key);
+      }
+    } else {
+      simulateKeypress(key);
+    }
   } catch (error) {
     console.error('Error typing key:', error);
   }
