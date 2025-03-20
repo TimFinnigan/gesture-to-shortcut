@@ -1,0 +1,22 @@
+{
+  "name": "gesture-to-shortcut",
+  "version": "1.0.0",
+  "description": "Electron app that maps hand gestures to keyboard shortcuts",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "postinstall": "electron-rebuild"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@mediapipe/hands": "^0.4.1675469240",
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/drawing_utils": "^0.3.1675466124",
+    "electron": "^28.2.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.5.0"
+  }
+} 

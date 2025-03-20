@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gesture to Shortcut</title>
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Gesture to Shortcut</h1>
+    <div class="video-container">
+      <video id="webcam" autoplay playsinline></video>
+      <canvas id="output-canvas"></canvas>
+    </div>
+    <div class="gesture-info">
+      <h2>Detected Gesture: <span id="detected-gesture">None</span></h2>
+      <h2>Last Action: <span id="last-action">None</span></h2>
+    </div>
+    <div class="gesture-mappings">
+      <h2>Gesture Mappings:</h2>
+      <ul>
+        <li><strong>Palm:</strong> Spacebar</li>
+        <li><strong>Closed Fist:</strong> Escape</li>
+        <li><strong>Pointing Up:</strong> Enter</li>
+        <li><strong>Thumbs Up:</strong> Arrow Up</li>
+        <li><strong>Thumbs Down:</strong> Arrow Down</li>
+      </ul>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html> 
