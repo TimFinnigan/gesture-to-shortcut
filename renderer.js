@@ -122,6 +122,9 @@ function detectGesture(landmarks) {
     Math.sqrt(Math.pow(pinkyTip.x - wrist.x, 2) + Math.pow(pinkyTip.y - wrist.y, 2))
   ];
   
+  // Get thumb-index distance for pinch detection
+  const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
+  
   // Check for pointing up by checking y-positions of fingertips relative to their bases
   // If index finger tip is much higher than its base, while other fingers are lower or close to their bases
   const indexPointingUp = indexTip.y < indexBase.y - 0.08;
@@ -138,7 +141,6 @@ function detectGesture(landmarks) {
   
   // Check for OK sign (thumb and index form a circle, other fingers extended)
   const okThreshold = 0.05;
-  const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
   if (thumbIndexDistance < okThreshold && 
       fingersExtended[2] > 0.15 && 
       fingersExtended[3] > 0.15 && 
@@ -146,13 +148,18 @@ function detectGesture(landmarks) {
     return "OK Sign";
   }
   
-  // Check for pinch gesture (thumb and index finger close together)
-  const pinchThreshold = 0.05;
-  if (thumbIndexDistance < pinchThreshold && 
-      fingersExtended[2] < 0.1 && 
-      fingersExtended[3] < 0.1 && 
-      fingersExtended[4] < 0.1) {
-    return "Pinch";
+  // Check for general pinch gesture (thumb and index finger close together)
+  // Used for both single-hand pinch and two-hand zoom gestures
+  const pinchThreshold = 0.07; // Increased threshold
+  if (thumbIndexDistance < pinchThreshold) {
+    // Different types of pinch depending on other fingers
+    if (fingersExtended[2] < 0.1 && fingersExtended[3] < 0.1 && fingersExtended[4] < 0.1) {
+      // All other fingers closed - for single-hand command
+      return "Pinch";
+    } else {
+      // For two-handed zoom gesture - more relaxed criteria
+      return "Zoom Pinch";
+    }
   }
   
   // Check for palm (all fingers extended)
@@ -252,12 +259,21 @@ hands.onResults((results) => {
       // Detect gesture
       const gesture = detectGesture(landmarks);
       
-      // If pinch detected, store points for possible zoom gesture
-      if (gesture === "Pinch") {
+      // If pinch or zoom pinch detected, store points for possible zoom gesture
+      if (gesture === "Pinch" || gesture === "Zoom Pinch") {
         pinchPoints.push({
           thumb: landmarks[4],
-          index: landmarks[8]
+          index: landmarks[8],
+          gesture: gesture
         });
+        
+        // Draw a highlight circle for pinch points for debugging
+        canvasCtx.beginPath();
+        const centerX = (landmarks[4].x + landmarks[8].x) / 2 * canvasElement.width;
+        const centerY = (landmarks[4].y + landmarks[8].y) / 2 * canvasElement.height;
+        canvasCtx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = gesture === "Zoom Pinch" ? "rgba(0, 255, 255, 0.3)" : "rgba(255, 0, 255, 0.3)";
+        canvasCtx.fill();
       }
       
       // Only show the first hand's gesture in UI
@@ -291,6 +307,25 @@ hands.onResults((results) => {
       }
     }
     
+    // Debug info for zoom gestures
+    if (pinchPoints.length === 2) {
+      // Draw a line connecting the two pinch points for zoom visual feedback
+      canvasCtx.beginPath();
+      const startX = (pinchPoints[0].thumb.x + pinchPoints[0].index.x) / 2 * canvasElement.width;
+      const startY = (pinchPoints[0].thumb.y + pinchPoints[0].index.y) / 2 * canvasElement.height;
+      const endX = (pinchPoints[1].thumb.x + pinchPoints[1].index.x) / 2 * canvasElement.width;
+      const endY = (pinchPoints[1].thumb.y + pinchPoints[1].index.y) / 2 * canvasElement.height;
+      
+      canvasCtx.moveTo(startX, startY);
+      canvasCtx.lineTo(endX, endY);
+      canvasCtx.strokeStyle = "#FFFF00";
+      canvasCtx.lineWidth = 5;
+      canvasCtx.stroke();
+      
+      // Show how many pinch points detected
+      lastActionElement.textContent = `Pinch points: ${pinchPoints.length} (ready for zoom)`;
+    }
+    
     // Check for zoom gestures (two pinches)
     if (pinchPoints.length === 2) {
       const currentTime = Date.now();
@@ -304,11 +339,12 @@ hands.onResults((results) => {
         // Store distance for tracking movement (zoom in/out)
         if (!lastPinchDistance) {
           lastPinchDistance = distance;
+          lastActionElement.textContent = 'Zoom tracking started';
         } else {
           // Determine if zooming in or out
           const pinchDelta = distance - lastPinchDistance;
           
-          if (Math.abs(pinchDelta) > 0.05) { // Threshold to avoid jitter
+          if (Math.abs(pinchDelta) > 0.03) { // Reduced threshold to avoid jitter
             if (pinchDelta > 0) {
               // Zoom in
               ipcRenderer.send('trigger-keyboard', 'zoom-in');
