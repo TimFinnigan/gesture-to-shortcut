@@ -141,6 +141,13 @@ ipcMain.on('trigger-keyboard', (event, key) => {
   }
 });
 
+// Handle minimize to tray event
+ipcMain.on('minimize-to-tray', () => {
+  if (mainWindow) {
+    mainWindow.hide();
+  }
+});
+
 app.whenReady().then(() => {
   createWindow();
 

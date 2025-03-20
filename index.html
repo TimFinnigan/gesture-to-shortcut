@@ -17,15 +17,21 @@
       <h2>Detected Gesture: <span id="detected-gesture">None</span></h2>
       <h2>Last Action: <span id="last-action">None</span></h2>
     </div>
-    <div class="gesture-mappings">
-      <h2>Gesture Mappings:</h2>
-      <ul>
-        <li><strong>Palm:</strong> Spacebar</li>
-        <li><strong>Closed Fist:</strong> Escape</li>
-        <li><strong>Pointing Up:</strong> Enter</li>
-        <li><strong>Thumbs Up:</strong> Arrow Up</li>
-        <li><strong>Thumbs Down:</strong> Arrow Down</li>
+    <div class="gesture-info">
+      <h2>Gesture Mappings</h2>
+      <ul class="gesture-list">
+        <li><span>Palm</span> <span>Spacebar</span></li>
+        <li><span>Closed Fist</span> <span>Escape</span></li>
+        <li><span>Pointing Up</span> <span>Enter</span></li>
+        <li><span>Thumbs Up</span> <span>Arrow Up</span></li>
+        <li><span>Thumbs Down</span> <span>Arrow Down</span></li>
       </ul>
+    </div>
+    <div class="settings-panel">
+      <h2>Settings</h2>
+      <button id="start-button">Start Camera</button>
+      <button id="stop-button">Stop Camera</button>
+      <button id="minimize-button">Minimize to Tray</button>
     </div>
   </div>
   <script src="renderer.js"></script>

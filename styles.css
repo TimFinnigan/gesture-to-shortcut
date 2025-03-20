@@ -1,1 +1,127 @@
-body { font-family: sans-serif; margin: 0; padding: 20px; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  color: #333;
+  background-color: #f5f5f7;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1, h2, h3 {
+  color: #2c3e50;
+}
+
+h1 {
+  margin-bottom: 30px;
+  text-align: center;
+  font-size: 28px;
+}
+
+.video-container {
+  position: relative;
+  margin: 20px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+video, canvas {
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+  background-color: #000;
+  display: block;
+}
+
+canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.gesture-info {
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.gesture-info h2 {
+  margin-top: 0;
+  font-size: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.gesture-list {
+  list-style: none;
+  padding: 0;
+}
+
+.gesture-list li {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+}
+
+.gesture-list li:last-child {
+  border-bottom: none;
+}
+
+.gesture-active {
+  background-color: #e9f7fe;
+  color: #0078d7;
+  border-radius: 5px;
+  padding: 5px 10px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 120, 215, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 120, 215, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 120, 215, 0);
+  }
+}
+
+button {
+  background-color: #0078d7;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 10px;
+}
+
+button:hover {
+  background-color: #005a9e;
+}
+
+.settings-panel {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.settings-panel h2 {
+  margin-top: 0;
+  font-size: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}

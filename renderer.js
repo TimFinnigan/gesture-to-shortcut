@@ -9,6 +9,9 @@ const canvasElement = document.getElementById('output-canvas');
 const canvasCtx = canvasElement.getContext('2d');
 const detectedGestureElement = document.getElementById('detected-gesture');
 const lastActionElement = document.getElementById('last-action');
+const startButton = document.getElementById('start-button');
+const stopButton = document.getElementById('stop-button');
+const minimizeButton = document.getElementById('minimize-button');
 
 // Add a notification about permissions
 function showPermissionNotification() {
@@ -60,13 +63,17 @@ hands.setOptions({
 });
 
 // Set up camera
-const camera = new Camera(videoElement, {
-  onFrame: async () => {
-    await hands.send({ image: videoElement });
-  },
-  width: 640,
-  height: 480
-});
+let camera = null;
+
+function initCamera() {
+  camera = new Camera(videoElement, {
+    onFrame: async () => {
+      await hands.send({ image: videoElement });
+    },
+    width: 640,
+    height: 480
+  });
+}
 
 // Define gesture cooldown to prevent rapid triggering
 let lastGestureTime = 0;
@@ -217,5 +224,43 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 window.addEventListener('load', resizeCanvas);
 
-// Start camera
-camera.start(); 
+// Button event handlers
+startButton.addEventListener('click', () => {
+  if (!camera) {
+    initCamera();
+    camera.start();
+    startButton.disabled = true;
+    stopButton.disabled = false;
+    lastActionElement.textContent = 'Camera started';
+  }
+});
+
+stopButton.addEventListener('click', () => {
+  if (camera) {
+    camera.stop();
+    camera = null;
+    startButton.disabled = false;
+    stopButton.disabled = true;
+    lastActionElement.textContent = 'Camera stopped';
+    
+    // Clear the canvas
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    detectedGestureElement.textContent = 'None';
+  }
+});
+
+minimizeButton.addEventListener('click', () => {
+  ipcRenderer.send('minimize-to-tray');
+  lastActionElement.textContent = 'Minimized to tray';
+});
+
+// Initialize on page load
+window.addEventListener('load', () => {
+  // Initialize camera by default
+  initCamera();
+  camera.start();
+  
+  // Setup button states
+  startButton.disabled = true;
+  stopButton.disabled = false;
+}); 
