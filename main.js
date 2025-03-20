@@ -30,6 +30,15 @@ function simulateKeypress(keyCode) {
         case 'down':
           script = 'tell application "System Events" to key code 125'; // Down arrow
           break;
+        case 'tab':
+          script = 'tell application "System Events" to key code 48'; // Tab
+          break;
+        case 'zoom-in':
+          script = 'tell application "System Events" to keystroke "+" using {command down}'; // Cmd+Plus
+          break;
+        case 'zoom-out':
+          script = 'tell application "System Events" to keystroke "-" using {command down}'; // Cmd+Minus
+          break;
         default:
           console.log('Unsupported key:', keyCode);
           return;
