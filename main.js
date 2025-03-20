@@ -64,6 +64,109 @@ function simulateKeypress(keyCode) {
   }
 }
 
+// Function to control mouse movement via AppleScript
+function moveMouseToPosition(x, y) {
+  if (process.platform === 'darwin') {
+    const { execSync } = require('child_process');
+    try {
+      // Log the position values
+      console.log(`Moving mouse to: x=${Math.round(x)}, y=${Math.round(y)}`);
+      
+      // Try the standard AppleScript approach first
+      try {
+        const script = `tell application "System Events" to set mouse position to {${Math.round(x)}, ${Math.round(y)}}`;
+        console.log(`Executing AppleScript: ${script}`);
+        execSync(`osascript -e '${script}'`);
+      } catch (firstError) {
+        console.error('First approach failed:', firstError);
+        
+        // Fall back to a shell script approach using cliclick if available
+        try {
+          execSync(`which cliclick`);
+          console.log('Using cliclick as fallback');
+          execSync(`cliclick m:${Math.round(x)},${Math.round(y)}`);
+        } catch (secondError) {
+          console.error('Could not find cliclick, mouse control may not work:', secondError);
+          
+          // As a last resort, try to create a temporary bash script to move the mouse
+          try {
+            const tmpScript = path.join(app.getPath('temp'), 'mouse_move.sh');
+            fs.writeFileSync(tmpScript, `
+              #!/bin/bash
+              osascript -e 'tell application "System Events" to set mouse position to {${Math.round(x)}, ${Math.round(y)}}'
+            `);
+            fs.chmodSync(tmpScript, '755');
+            execSync(tmpScript);
+            fs.unlinkSync(tmpScript);
+          } catch (finalError) {
+            console.error('All mouse control methods failed:', finalError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error moving mouse:', error);
+      
+      // If error is related to permissions, show a message in the window
+      if (error.message.includes('not allowed assistive access')) {
+        mainWindow.webContents.executeJavaScript(`
+          document.getElementById('last-action').textContent = 'Error: Please enable mouse control permissions';
+        `);
+      }
+    }
+  } else {
+    console.log('Mouse control currently only supported on macOS');
+  }
+}
+
+// Function to perform mouse click
+function performMouseClick(button = 'left') {
+  if (process.platform === 'darwin') {
+    const { execSync } = require('child_process');
+    try {
+      console.log(`Performing mouse ${button} click`);
+      
+      // Try the standard AppleScript first
+      try {
+        const script = `tell application "System Events" to click ${button} button of mouse`;
+        console.log(`Executing AppleScript: ${script}`);
+        execSync(`osascript -e '${script}'`);
+      } catch (firstError) {
+        console.error('Standard click failed:', firstError);
+        
+        // Try cliclick if available (common utility for macOS mouse control)
+        try {
+          execSync(`which cliclick`);
+          console.log('Using cliclick as fallback');
+          
+          const clickType = button === 'right' ? 'rc' : 'c';
+          // Click at current position
+          execSync(`cliclick ${clickType}:.`);
+        } catch (secondError) {
+          console.error('Could not find cliclick, mouse click may not work:', secondError);
+          
+          // As a last resort, try to create a temporary script
+          try {
+            const tmpScript = path.join(app.getPath('temp'), 'mouse_click.sh');
+            fs.writeFileSync(tmpScript, `
+              #!/bin/bash
+              osascript -e 'tell application "System Events" to click ${button} button of mouse'
+            `);
+            fs.chmodSync(tmpScript, '755');
+            execSync(tmpScript);
+            fs.unlinkSync(tmpScript);
+          } catch (finalError) {
+            console.error('All mouse click methods failed:', finalError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error performing mouse click:', error);
+    }
+  } else {
+    console.log('Mouse control currently only supported on macOS');
+  }
+}
+
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.workAreaSize;
@@ -163,6 +266,16 @@ ipcMain.on('trigger-keyboard', (event, key) => {
   } catch (error) {
     console.error('Error typing key:', error);
   }
+});
+
+// Handle mouse movement from renderer
+ipcMain.on('move-mouse', (event, position) => {
+  moveMouseToPosition(position.x, position.y);
+});
+
+// Handle mouse click from renderer
+ipcMain.on('mouse-click', (event, button) => {
+  performMouseClick(button);
 });
 
 // Handle minimize to tray event
