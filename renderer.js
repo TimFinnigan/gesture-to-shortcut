@@ -77,7 +77,7 @@ function initCamera() {
 
 // Define gesture cooldown to prevent rapid triggering
 let lastGestureTime = 0;
-const GESTURE_COOLDOWN = 1000; // 1 second cooldown between gestures
+const GESTURE_COOLDOWN = 1500; // 1.5 second cooldown between gestures
 
 // Variable to track if hand is visible
 let handVisible = false;
@@ -107,6 +107,12 @@ function detectGesture(landmarks) {
   const ringTip = landmarks[16];
   const pinkyTip = landmarks[20];
   
+  // Finger bases (knuckles)
+  const indexBase = landmarks[5];
+  const middleBase = landmarks[9];
+  const ringBase = landmarks[13];
+  const pinkyBase = landmarks[17];
+  
   // Calculate distances from wrist to fingertips
   const fingersExtended = [
     Math.sqrt(Math.pow(thumbTip.x - wrist.x, 2) + Math.pow(thumbTip.y - wrist.y, 2)),
@@ -116,14 +122,44 @@ function detectGesture(landmarks) {
     Math.sqrt(Math.pow(pinkyTip.x - wrist.x, 2) + Math.pow(pinkyTip.y - wrist.y, 2))
   ];
   
-  // Check for pinch gesture (thumb and index finger close together)
-  const pinchThreshold = 0.05;
+  // Get thumb-index distance for pinch detection
   const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
-  if (thumbIndexDistance < pinchThreshold && 
-      fingersExtended[2] > 0.1 && 
-      fingersExtended[3] > 0.1 && 
-      fingersExtended[4] > 0.1) {
-    return "Pinch";
+  
+  // Check for pointing up by checking y-positions of fingertips relative to their bases
+  // If index finger tip is much higher than its base, while other fingers are lower or close to their bases
+  const indexPointingUp = indexTip.y < indexBase.y - 0.08;
+  const middleDown = middleTip.y >= middleBase.y - 0.03;
+  const ringDown = ringTip.y >= ringBase.y - 0.03;
+  const pinkyDown = pinkyTip.y >= pinkyBase.y - 0.03;
+  
+  // Also check distance to ensure index is extended
+  const indexExtended = calculateDistance(indexTip, wrist) > 0.15;
+  
+  if (indexPointingUp && middleDown && ringDown && pinkyDown && indexExtended) {
+    return "Pointing Up";
+  }
+  
+  // Check for OK sign (thumb and index form a circle, other fingers extended)
+  const okThreshold = 0.05;
+  if (thumbIndexDistance < okThreshold && 
+      fingersExtended[2] > 0.15 && 
+      fingersExtended[3] > 0.15 && 
+      fingersExtended[4] > 0.15) {
+    return "OK Sign";
+  }
+  
+  // Check for general pinch gesture (thumb and index finger close together)
+  // Used for both single-hand pinch and two-hand zoom gestures
+  const pinchThreshold = 0.07; // Increased threshold
+  if (thumbIndexDistance < pinchThreshold) {
+    // Different types of pinch depending on other fingers
+    if (fingersExtended[2] < 0.1 && fingersExtended[3] < 0.1 && fingersExtended[4] < 0.1) {
+      // All other fingers closed - for single-hand command
+      return "Pinch";
+    } else {
+      // For two-handed zoom gesture - more relaxed criteria
+      return "Zoom Pinch";
+    }
   }
   
   // Check for palm (all fingers extended)
@@ -135,15 +171,6 @@ function detectGesture(landmarks) {
   // Check for closed fist (all fingers curled)
   if (fingersExtended.every(dist => dist < threshold)) {
     return "Closed Fist";
-  }
-  
-  // Check for pointing up (only index finger extended)
-  if (fingersExtended[1] > threshold && 
-      fingersExtended[0] < threshold && 
-      fingersExtended[2] < threshold && 
-      fingersExtended[3] < threshold && 
-      fingersExtended[4] < threshold) {
-    return "Pointing Up";
   }
   
   // Check for thumbs up (only thumb extended and pointing up)
@@ -184,6 +211,10 @@ function triggerKeyboardAction(gesture) {
       action = 'Escape pressed';
       break;
     case "Pointing Up":
+      ipcRenderer.send('trigger-keyboard', 'tab');
+      action = 'Tab pressed';
+      break;
+    case "OK Sign":
       ipcRenderer.send('trigger-keyboard', 'enter');
       action = 'Enter pressed';
       break;
@@ -197,8 +228,8 @@ function triggerKeyboardAction(gesture) {
       break;
     case "Pinch":
       // For single hand pinch (not used for zooming)
-      ipcRenderer.send('trigger-keyboard', 'tab');
-      action = 'Tab pressed';
+      ipcRenderer.send('trigger-keyboard', 'left');
+      action = 'Arrow Left pressed';
       break;
   }
   
@@ -228,17 +259,40 @@ hands.onResults((results) => {
       // Detect gesture
       const gesture = detectGesture(landmarks);
       
-      // If pinch detected, store points for possible zoom gesture
-      if (gesture === "Pinch") {
+      // If pinch or zoom pinch detected, store points for possible zoom gesture
+      if (gesture === "Pinch" || gesture === "Zoom Pinch") {
         pinchPoints.push({
           thumb: landmarks[4],
-          index: landmarks[8]
+          index: landmarks[8],
+          gesture: gesture
         });
+        
+        // Draw a highlight circle for pinch points for debugging
+        canvasCtx.beginPath();
+        const centerX = (landmarks[4].x + landmarks[8].x) / 2 * canvasElement.width;
+        const centerY = (landmarks[4].y + landmarks[8].y) / 2 * canvasElement.height;
+        canvasCtx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = gesture === "Zoom Pinch" ? "rgba(0, 255, 255, 0.3)" : "rgba(255, 0, 255, 0.3)";
+        canvasCtx.fill();
       }
       
       // Only show the first hand's gesture in UI
       if (i === 0) {
         detectedGestureElement.textContent = gesture;
+        
+        // Calculate cooldown remaining
+        const currentTime = Date.now();
+        const cooldownRemaining = GESTURE_COOLDOWN - (currentTime - lastGestureTime);
+        
+        // Show visual indication of cooldown
+        if (cooldownRemaining > 0 && gesture !== "Unknown") {
+          const cooldownPercentage = (cooldownRemaining / GESTURE_COOLDOWN) * 100;
+          detectedGestureElement.style.opacity = 0.5 + (0.5 * (1 - cooldownPercentage / 100));
+          detectedGestureElement.style.color = "#FF9900"; // Orange during cooldown
+        } else {
+          detectedGestureElement.style.opacity = 1;
+          detectedGestureElement.style.color = "#00AA00"; // Green when ready
+        }
       }
       
       // For single hand gestures
@@ -251,6 +305,25 @@ hands.onResults((results) => {
           lastGestureTime = currentTime;
         }
       }
+    }
+    
+    // Debug info for zoom gestures
+    if (pinchPoints.length === 2) {
+      // Draw a line connecting the two pinch points for zoom visual feedback
+      canvasCtx.beginPath();
+      const startX = (pinchPoints[0].thumb.x + pinchPoints[0].index.x) / 2 * canvasElement.width;
+      const startY = (pinchPoints[0].thumb.y + pinchPoints[0].index.y) / 2 * canvasElement.height;
+      const endX = (pinchPoints[1].thumb.x + pinchPoints[1].index.x) / 2 * canvasElement.width;
+      const endY = (pinchPoints[1].thumb.y + pinchPoints[1].index.y) / 2 * canvasElement.height;
+      
+      canvasCtx.moveTo(startX, startY);
+      canvasCtx.lineTo(endX, endY);
+      canvasCtx.strokeStyle = "#FFFF00";
+      canvasCtx.lineWidth = 5;
+      canvasCtx.stroke();
+      
+      // Show how many pinch points detected
+      lastActionElement.textContent = `Pinch points: ${pinchPoints.length} (ready for zoom)`;
     }
     
     // Check for zoom gestures (two pinches)
@@ -266,11 +339,12 @@ hands.onResults((results) => {
         // Store distance for tracking movement (zoom in/out)
         if (!lastPinchDistance) {
           lastPinchDistance = distance;
+          lastActionElement.textContent = 'Zoom tracking started';
         } else {
           // Determine if zooming in or out
           const pinchDelta = distance - lastPinchDistance;
           
-          if (Math.abs(pinchDelta) > 0.05) { // Threshold to avoid jitter
+          if (Math.abs(pinchDelta) > 0.03) { // Reduced threshold to avoid jitter
             if (pinchDelta > 0) {
               // Zoom in
               ipcRenderer.send('trigger-keyboard', 'zoom-in');
