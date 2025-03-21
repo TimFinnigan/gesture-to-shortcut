@@ -62,3 +62,9 @@ If keyboard events aren't working, make sure the application has accessibility p
 ## License
 
 MIT
+
+## Acknowledgments
+
+This project uses:
+- [MediaPipe](https://github.com/google/mediapipe) (Apache License 2.0)
+- Electron (MIT License)
