@@ -201,6 +201,30 @@ function detectGesture(landmarks) {
     return "Pointing Up";
   }
   
+  // Check for one finger up (index) - for scrolling up
+  if (fingerYOffset[1] > 0.02 && 
+      fingerYOffset[2] < 0.015 && 
+      fingerYOffset[3] < 0.015 && 
+      fingerYOffset[4] < 0.015 && 
+      fingerExtendedFromBase[1] > 0.07 && 
+      fingerExtendedFromBase[2] < 0.07 && 
+      fingerExtendedFromBase[3] < 0.07 && 
+      fingerExtendedFromBase[4] < 0.07) {
+    return "One Finger";
+  }
+  
+  // Check for two fingers up (index and middle) - for scrolling down
+  if (fingerYOffset[1] > 0.02 && 
+      fingerYOffset[2] > 0.02 && 
+      fingerYOffset[3] < 0.015 && 
+      fingerYOffset[4] < 0.015 && 
+      fingerExtendedFromBase[1] > 0.07 && 
+      fingerExtendedFromBase[2] > 0.07 && 
+      fingerExtendedFromBase[3] < 0.07 && 
+      fingerExtendedFromBase[4] < 0.07) {
+    return "Two Fingers";
+  }
+  
   // Check for general pinch gesture (thumb and index finger close together)
   // Used for both single-hand pinch and two-hand zoom gestures
   const pinchThreshold = 0.07; // Increased threshold
@@ -270,13 +294,13 @@ function triggerKeyboardAction(gesture) {
       ipcRenderer.send('trigger-keyboard', 'enter');
       action = 'Enter pressed';
       break;
-    case "Victory Sign":
-      ipcRenderer.send('trigger-keyboard', 'up');
-      action = 'Page Up pressed';
+    case "One Finger":
+      ipcRenderer.send('trigger-keyboard', 'pagedown');
+      action = 'Page Down';
       break;
-    case "Three Fingers":
-      ipcRenderer.send('trigger-keyboard', 'down');
-      action = 'Page Down pressed';
+    case "Two Fingers":
+      ipcRenderer.send('trigger-keyboard', 'pageup');
+      action = 'Page Up';
       break;
     case "Pinch":
       // For single hand pinch (not used for zooming)
@@ -305,7 +329,8 @@ hands.onResults((results) => {
     // Draw hand landmarks
     for (let i = 0; i < results.multiHandLandmarks.length; i++) {
       const landmarks = results.multiHandLandmarks[i];
-      drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
+      
+      // Keep only the landmarks (red dots) without the connecting lines
       drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2 });
       
       // Detect gesture
@@ -332,60 +357,19 @@ hands.onResults((results) => {
         pinkyBase.y - pinkyTip.y   // Pinky
       ];
       
-      // Draw lines from base to tip with color indicating up/down position
-      // Green: finger is up enough for Victory Sign
-      // Yellow: finger is up enough for Three Fingers
-      // Red: finger is not up enough for either gesture
+      // Add semi-transparent background for the gesture text
+      canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      canvasCtx.fillRect(5, 5, 200, 40);
       
-      // Draw indicator lines
-      canvasCtx.beginPath();
-      canvasCtx.moveTo(indexBase.x * canvasElement.width, indexBase.y * canvasElement.height);
-      canvasCtx.lineTo(indexTip.x * canvasElement.width, indexTip.y * canvasElement.height);
-      canvasCtx.strokeStyle = fingerYOffset[1] > 0.02 ? "#00FF00" : (fingerYOffset[1] > 0.015 ? "#FFFF00" : "#FF0000");
-      canvasCtx.lineWidth = 3;
-      canvasCtx.stroke();
-      
-      canvasCtx.beginPath();
-      canvasCtx.moveTo(middleBase.x * canvasElement.width, middleBase.y * canvasElement.height);
-      canvasCtx.lineTo(middleTip.x * canvasElement.width, middleTip.y * canvasElement.height);
-      canvasCtx.strokeStyle = fingerYOffset[2] > 0.02 ? "#00FF00" : (fingerYOffset[2] > 0.015 ? "#FFFF00" : "#FF0000");
-      canvasCtx.lineWidth = 3;
-      canvasCtx.stroke();
-      
-      canvasCtx.beginPath();
-      canvasCtx.moveTo(ringBase.x * canvasElement.width, ringBase.y * canvasElement.height);
-      canvasCtx.lineTo(ringTip.x * canvasElement.width, ringTip.y * canvasElement.height);
-      canvasCtx.strokeStyle = fingerYOffset[3] > 0.015 ? "#00FFFF" : (fingerYOffset[3] < 0.015 ? "#00FF00" : "#FF00FF");
-      canvasCtx.lineWidth = 3;
-      canvasCtx.stroke();
-      
-      canvasCtx.beginPath();
-      canvasCtx.moveTo(pinkyBase.x * canvasElement.width, pinkyBase.y * canvasElement.height);
-      canvasCtx.lineTo(pinkyTip.x * canvasElement.width, pinkyTip.y * canvasElement.height);
-      canvasCtx.strokeStyle = fingerYOffset[4] < 0.015 ? "#00FF00" : "#FF0000";
-      canvasCtx.lineWidth = 3;
-      canvasCtx.stroke();
-      
-      // Display debug info on canvas
-      const debugYOffset = [
-        `Index: ${fingerYOffset[1].toFixed(3)} ${fingerYOffset[1] > 0.02 ? "✓V" : (fingerYOffset[1] > 0.015 ? "✓3" : "✗")}`,
-        `Middle: ${fingerYOffset[2].toFixed(3)} ${fingerYOffset[2] > 0.02 ? "✓V" : (fingerYOffset[2] > 0.015 ? "✓3" : "✗")}`,
-        `Ring: ${fingerYOffset[3].toFixed(3)} ${fingerYOffset[3] > 0.015 ? "✓3" : (fingerYOffset[3] < 0.015 ? "✓V" : "✗")}`,
-        `Pinky: ${fingerYOffset[4].toFixed(3)} ${fingerYOffset[4] < 0.015 ? "✓" : "✗"}`
-      ];
-      
-      canvasCtx.font = '16px Arial';
+      // Only show gesture text with larger font
+      canvasCtx.font = '24px Arial';
       canvasCtx.fillStyle = 'white';
       canvasCtx.strokeStyle = 'black';
-      canvasCtx.lineWidth = 0.5;
-      for (let j = 0; j < debugYOffset.length; j++) {
-        canvasCtx.fillText(debugYOffset[j], 10, 20 + j * 20);
-        canvasCtx.strokeText(debugYOffset[j], 10, 20 + j * 20);
-      }
+      canvasCtx.lineWidth = 1;
       
-      // Add gesture debug text
-      canvasCtx.fillText(`Gesture: ${gesture}`, 10, 100);
-      canvasCtx.strokeText(`Gesture: ${gesture}`, 10, 100);
+      // Add gesture text - made larger and more visible
+      canvasCtx.fillText(`Gesture: ${gesture}`, 10, 35);
+      canvasCtx.strokeText(`Gesture: ${gesture}`, 10, 35);
       
       // If pinch or zoom pinch detected, store points for possible zoom gesture
       if (gesture === "Pinch" || gesture === "Zoom Pinch") {
@@ -394,14 +378,6 @@ hands.onResults((results) => {
           index: landmarks[8],
           gesture: gesture
         });
-        
-        // Draw a highlight circle for pinch points for debugging
-        canvasCtx.beginPath();
-        const centerX = (landmarks[4].x + landmarks[8].x) / 2 * canvasElement.width;
-        const centerY = (landmarks[4].y + landmarks[8].y) / 2 * canvasElement.height;
-        canvasCtx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
-        canvasCtx.fillStyle = gesture === "Zoom Pinch" ? "rgba(0, 255, 255, 0.3)" : "rgba(255, 0, 255, 0.3)";
-        canvasCtx.fill();
       }
       
       // Only show the first hand's gesture in UI
@@ -437,19 +413,6 @@ hands.onResults((results) => {
     
     // Debug info for zoom gestures
     if (pinchPoints.length === 2) {
-      // Draw a line connecting the two pinch points for zoom visual feedback
-      canvasCtx.beginPath();
-      const startX = (pinchPoints[0].thumb.x + pinchPoints[0].index.x) / 2 * canvasElement.width;
-      const startY = (pinchPoints[0].thumb.y + pinchPoints[0].index.y) / 2 * canvasElement.height;
-      const endX = (pinchPoints[1].thumb.x + pinchPoints[1].index.x) / 2 * canvasElement.width;
-      const endY = (pinchPoints[1].thumb.y + pinchPoints[1].index.y) / 2 * canvasElement.height;
-      
-      canvasCtx.moveTo(startX, startY);
-      canvasCtx.lineTo(endX, endY);
-      canvasCtx.strokeStyle = "#FFFF00";
-      canvasCtx.lineWidth = 5;
-      canvasCtx.stroke();
-      
       // Show how many pinch points detected
       lastActionElement.textContent = `Pinch points: ${pinchPoints.length} (ready for zoom)`;
     }
