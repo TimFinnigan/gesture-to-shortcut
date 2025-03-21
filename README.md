@@ -20,7 +20,7 @@ An Electron application that uses MediaPipe hand tracking to map hand gestures t
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/gesture-to-shortcut.git
+   git clone https://github.com/TimFinnigan/gesture-to-shortcut.git
    cd gesture-to-shortcut
    ```
 
