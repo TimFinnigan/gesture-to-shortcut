@@ -1,6 +1,9 @@
 # Gesture to Shortcut
 
-An Electron application that uses MediaPipe hand tracking to map hand gestures to keyboard shortcuts.
+An Electron application that maps hand gestures to keyboard shortcuts using computer vision.
+
+[![Demo Video](https://img.youtube.com/vi/SlbeLWUAeBA/0.jpg)](https://www.youtube.com/watch?v=SlbeLWUAeBA)
+[Watch Demo Video](https://www.youtube.com/watch?v=SlbeLWUAeBA)
 
 ## Features
 
@@ -48,7 +51,7 @@ To modify gesture mappings, edit the `gestureToKeyMap` object in `renderer.js`.
 This application uses:
 - MediaPipe for hand tracking and gesture recognition
 - Electron for the desktop application wrapper
-- Robot.js for simulating keyboard events
+- AppleScript for simulating keyboard events
 
 ## Troubleshooting
 
@@ -66,5 +69,5 @@ MIT
 ## Acknowledgments
 
 This project uses:
-- [MediaPipe](https://github.com/google/mediapipe) (Apache License 2.0)
+- [MediaPipe](https://github.com/google/mediapipe) (Apache License 2.0) for hand tracking and gesture recognition
 - Electron (MIT License)
