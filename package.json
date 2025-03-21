@@ -8,7 +8,7 @@
     "dev": "electron . --dev",
     "postinstall": "electron-rebuild"
   },
-  "author": "Your Name",
+  "author": "Tim Finnigan",
   "license": "MIT",
   "dependencies": {
     "@mediapipe/hands": "^0.4.1675469240",
